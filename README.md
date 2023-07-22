@@ -1,2 +1,3 @@
 # Linear-regression
-An introduction to machine learning
+
+Summary: In this project, you will implement your first machine learning algorithm
