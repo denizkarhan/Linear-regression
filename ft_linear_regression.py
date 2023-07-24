@@ -3,104 +3,83 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 
-def normalizeData():
-    # Veri setindeki her bir kilometre ve fiyat değerini
-    # minKm ile maxKm ve minPrice ile maxPrice arasında 0-1 arasında yeniden değerlendiriyor
-    
-    # Örneğin kilometre değeri 10000 olsun maxKm 25000 minKm 5000 ise
-    # 10000 kilometrenin normalize değeri (10000 - 5000) / (25000 - 5000) = 0.25
-
-    # Bu değerler gradyan fonksiyonunun kayıp değerleri azaltarak teta0 ve teta1 katsayılarının bulunmasına yardım ediyor
-
-    global km, price
+def normalizeData(km, price):
+    # Km ve Price verilerini 0 ile 1 arasında yeniden değerlendir
     global normalizeKm, normalizePrice
-    global min_km, max_km, min_prc, max_prc
 
-    min_km, max_km, min_prc, max_prc = min(km), max(km), min(price), max(price)
     for i in range(len(km)):
-        normalizeKm.append((float(km[i]) - min_km) / (max_km - min_km))
-        normalizePrice.append((float(price[i]) - min_prc) / (max_prc - min_prc))
-def estimatePrice(mileage, tempt0, tempt1):
-    return ((tempt0 + (tempt1 * float(mileage))))
-def meanSquareError():
-    global km, price
-    global tempt0, tempt1
+        normalizeKm.append((float(km[i]) - min(km)) / (max(km) - min(km)))
+        normalizePrice.append((float(price[i]) - min(price)) / (max(price) - min(price)))
+def estimatePrice(mileage):
+    # y = t0 + t1 * milage
+    # t0 ve t1 teta değerleri doğrusal fonksiyonu oluşturur
+    # MSE fonksiyonu minimum değerini alana kadar teta değerleri güncellenir
+    global t0, t1
+    return ((t0 + (t1 * float(mileage))))
+def meanSquareError(km, price):
+    # MSE = (1/n) * Σ(yᵢ - ȳ)²
+    # y -> bağımlı değişken (data.csv - fiyat)
+    # ȳ -> t0 + t1 * milage (tahmin edilen fiyat)
+    # MSE ile tahmin edilen noktaların gerçek noktalara olan uzaklığını t0 ve t1 değerlerini güncelleyerek azaltıyoruz
+    global t0, t1
     tmp_summ = 0.0
 
     for i in range(len(km)):
-        tmp_diff = estimatePrice(km[i], tempt0, tempt1) - float(price[i])
+        tmp_diff = estimatePrice(km[i]) - float(price[i])
         tmp_diff *= tmp_diff
         tmp_summ += tmp_diff
-
     return (tmp_summ / (len(km)))
-def updateTeta0():
-    global tempt0, tempt1
+def updateTeta0(t0, t1):
+    # Her noktanın tahmini fiyatı ile normal fiyatının farkı alınıyor ve toplanıyor
+    # ortalama farkı öğrenme oranı kadar çarparak t0 ve t1 güncelleniyor
     global learning_rate, normalizeKm, normalizePrice
     tmp_summ = 0.0
 
     for i in range(len(normalizeKm)):
-        tmp_summ += (estimatePrice(normalizeKm[i], tempt0, tempt1) - float(normalizePrice[i]))
+        tmp_summ += estimatePrice(normalizeKm[i]) - float(normalizePrice[i])
     return (learning_rate * (tmp_summ / (len(normalizeKm))))
-def updateTeta1():
-    global tempt0, tempt1
+def updateTeta1(t0, t1):
     global learning_rate, normalizeKm, normalizePrice
     tmp_summ = 0.0
 
     for i in range(len(normalizeKm)):
-        tmp_summ += (estimatePrice(normalizeKm[i], tempt0, tempt1) - float(normalizePrice[i])) * float(normalizeKm[i])
-
+        tmp_summ += (estimatePrice(normalizeKm[i]) - float(normalizePrice[i])) * float(normalizeKm[i])
     return (learning_rate * (tmp_summ / len(normalizeKm)))
 def modelPredict():
+    global t0, t1
     global km, price
-    global t0, t1, tempt0, tempt1
-    global learning_rate, sharpness, meanErr
-    global min_km, max_km, min_prc, max_prc
 
-    normalizeData()
-    meanErr = meanSquareError()
-    sharpness = meanErr
+    normalizeData(km, price)
+    mse = meanSquareError(km, price)
+    sharpness = mse
 
     while sharpness > 0.000001 or sharpness < -0.000001:
-        tempt0 -= updateTeta0()
-        tempt1 -= updateTeta1()
-        prevErr = meanErr
-        meanErr = meanSquareError()
-        sharpness = meanErr - prevErr
+        t0 -= updateTeta0(t0, t1)
+        t1 -= updateTeta1(t0, t1)
+        tempMse = mse
+        mse = meanSquareError(km, price)
+        sharpness = mse - tempMse
 
-    t1 = (max_prc - min_prc) * tempt1 / (max_km - min_km)
-    t0 = min_prc + ((max_prc - min_prc) * tempt0) + t1 * (-min_km)
-def regressionPlot():
-    global km, price
-    global t0, t1, tempt0, tempt1
-    global min_km, max_km, min_prc, max_prc
-
+    t1 = (max(price) - min(price)) * t1 / (max(km) - min(km))
+    t0 = min(price) + ((max(price) - min(price)) * t0) + t1 * (-min(km))
+def regressionPlot(km, price, t0, t1):
     plt.title('ft_linear_regression')
-    plt.xlabel('Mileages')
-    plt.ylabel('Prices')
+    plt.xlabel('Mileage')
+    plt.ylabel('Price')
 
-    plt.plot(km, price, 'ro')    
-    plt.plot([min_km, max_km], [estimatePrice(min_km, t0, t1), estimatePrice(max_km, t0, t1)])
-    plt.axis([min_km - abs(max_km * 0.1), max_km + abs(max_km * 0.1), min_prc - abs(max_prc * 0.1), max_prc + abs(max_prc * 0.1)])
+    plt.plot(km, price, 'ro')
+    plt.plot([min(km), max(km)], [estimatePrice(min(km)), estimatePrice(max(km))])
+    plt.axis([min(km) - abs(max(km) * 0.1), max(km) + abs(max(km) * 0.1), min(price) - abs(max(price) * 0.1), max(price) + abs(max(price) * 0.1)])
 
     plt.show()
 
-
-# def prompt():
-#     fileName = input("Dosya yolunu belirt: ")
-#     print(open(fileName))
-
-# prompt()
 data = pd.read_csv('data.csv')
 
 t0, t1 = 0.0, 0.0
 learning_rate = 0.1
-tempt0, tempt1 = 0.0, 0.0
-meanErr, sharpness = 0.0, 0.0
 
 km, price = data['km'], data['price']
 normalizeKm, normalizePrice = [], []
 
 modelPredict()
-regressionPlot()
-
-print(estimatePrice(240000, t0, t1))
+regressionPlot(km, price, t0, t1)
