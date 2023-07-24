@@ -4,23 +4,18 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 def normalizeData(km, price):
-    # Km ve Price verilerini 0 ile 1 arasında yeniden değerlendir
     global normalizeKm, normalizePrice
 
     for i in range(len(km)):
         normalizeKm.append((float(km[i]) - min(km)) / (max(km) - min(km)))
         normalizePrice.append((float(price[i]) - min(price)) / (max(price) - min(price)))
+
 def estimatePrice(mileage):
-    # y = t0 + t1 * milage
-    # t0 ve t1 teta değerleri doğrusal fonksiyonu oluşturur
-    # MSE fonksiyonu minimum değerini alana kadar teta değerleri güncellenir
     global t0, t1
+
     return ((t0 + (t1 * float(mileage))))
+
 def meanSquareError(km, price):
-    # MSE = (1/n) * Σ(yᵢ - ȳ)²
-    # y -> bağımlı değişken (data.csv - fiyat)
-    # ȳ -> t0 + t1 * milage (tahmin edilen fiyat)
-    # MSE ile tahmin edilen noktaların gerçek noktalara olan uzaklığını t0 ve t1 değerlerini güncelleyerek azaltıyoruz
     global t0, t1
     tmp_summ = 0.0
 
@@ -29,15 +24,15 @@ def meanSquareError(km, price):
         tmp_diff *= tmp_diff
         tmp_summ += tmp_diff
     return (tmp_summ / (len(km)))
+
 def updateTeta0(t0, t1):
-    # Her noktanın tahmini fiyatı ile normal fiyatının farkı alınıyor ve toplanıyor
-    # ortalama farkı öğrenme oranı kadar çarparak t0 ve t1 güncelleniyor
     global learning_rate, normalizeKm, normalizePrice
     tmp_summ = 0.0
 
     for i in range(len(normalizeKm)):
         tmp_summ += estimatePrice(normalizeKm[i]) - float(normalizePrice[i])
     return (learning_rate * (tmp_summ / (len(normalizeKm))))
+
 def updateTeta1(t0, t1):
     global learning_rate, normalizeKm, normalizePrice
     tmp_summ = 0.0
@@ -45,6 +40,7 @@ def updateTeta1(t0, t1):
     for i in range(len(normalizeKm)):
         tmp_summ += (estimatePrice(normalizeKm[i]) - float(normalizePrice[i])) * float(normalizeKm[i])
     return (learning_rate * (tmp_summ / len(normalizeKm)))
+
 def modelPredict():
     global t0, t1
     global km, price
@@ -62,6 +58,7 @@ def modelPredict():
 
     t1 = (max(price) - min(price)) * t1 / (max(km) - min(km))
     t0 = min(price) + ((max(price) - min(price)) * t0) + t1 * (-min(km))
+
 def regressionPlot(km, price, t0, t1):
     plt.title('ft_linear_regression')
     plt.xlabel('Mileage')
