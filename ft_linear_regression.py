@@ -1,21 +1,23 @@
-import os.path
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 
+def error(msg):
+    print(msg)
+    exit(1)
 def normalizeData(km, price):
-    global normalizeKm, normalizePrice
+    global scaledKm, scaledPrice
 
     for i in range(len(km)):
-        normalizeKm.append((float(km[i]) - min(km)) / (max(km) - min(km)))
-        normalizePrice.append((float(price[i]) - min(price)) / (max(price) - min(price)))
-
+        scaledKm.append((float(km[i]) - min(km)) / (max(km) - min(km)))
+        scaledPrice.append((float(price[i]) - min(price)) / (max(price) - min(price)))
 def estimatePrice(mileage):
     global t0, t1
-
     return ((t0 + (t1 * float(mileage))))
-
 def meanSquareError(km, price):
+    # MSE = (1/n) * Σ(yᵢ - ȳ)²
+    # y -> bağımlı değişken (data.csv - fiyat)
+    # ȳ -> t0 + t1 * milage (tahmin edilen fiyat)
     global t0, t1
     tmp_summ = 0.0
 
@@ -24,23 +26,20 @@ def meanSquareError(km, price):
         tmp_diff *= tmp_diff
         tmp_summ += tmp_diff
     return (tmp_summ / (len(km)))
-
 def updateTeta0(t0, t1):
-    global learning_rate, normalizeKm, normalizePrice
+    global scaledKm, scaledPrice
     tmp_summ = 0.0
 
-    for i in range(len(normalizeKm)):
-        tmp_summ += estimatePrice(normalizeKm[i]) - float(normalizePrice[i])
-    return (learning_rate * (tmp_summ / (len(normalizeKm))))
-
+    for i in range(len(scaledKm)):
+        tmp_summ += estimatePrice(scaledKm[i]) - float(scaledPrice[i])
+    return tmp_summ / len(scaledKm)
 def updateTeta1(t0, t1):
-    global learning_rate, normalizeKm, normalizePrice
+    global scaledKm, scaledPrice
     tmp_summ = 0.0
 
-    for i in range(len(normalizeKm)):
-        tmp_summ += (estimatePrice(normalizeKm[i]) - float(normalizePrice[i])) * float(normalizeKm[i])
-    return (learning_rate * (tmp_summ / len(normalizeKm)))
-
+    for i in range(len(scaledKm)):
+        tmp_summ += (estimatePrice(scaledKm[i]) - float(scaledPrice[i])) * float(scaledKm[i])
+    return tmp_summ / len(scaledKm)
 def modelPredict():
     global t0, t1
     global km, price
@@ -48,7 +47,6 @@ def modelPredict():
     normalizeData(km, price)
     mse = meanSquareError(km, price)
     sharpness = mse
-
     while sharpness > 0.000001 or sharpness < -0.000001:
         t0 -= updateTeta0(t0, t1)
         t1 -= updateTeta1(t0, t1)
@@ -59,6 +57,8 @@ def modelPredict():
     t1 = (max(price) - min(price)) * t1 / (max(km) - min(km))
     t0 = min(price) + ((max(price) - min(price)) * t0) + t1 * (-min(km))
 
+    save = open('thetaValues.txt', 'w')
+    save.write(str(t0) + "," + str(t1))
 def regressionPlot(km, price, t0, t1):
     plt.title('ft_linear_regression')
     plt.xlabel('Mileage')
@@ -70,13 +70,18 @@ def regressionPlot(km, price, t0, t1):
 
     plt.show()
 
-data = pd.read_csv('data.csv')
-
 t0, t1 = 0.0, 0.0
-learning_rate = 0.1
+scaledKm, scaledPrice = [], []
 
-km, price = data['km'], data['price']
-normalizeKm, normalizePrice = [], []
+try:
+    data = pd.read_csv(input("Enter the data set: "))
+    if (len(data['km']) < 2 or len(data['price']) < 2):
+        error("Not enough data found!")
+    km, price = data['km'], data['price']
+except FileNotFoundError:
+    error("File not found!")
+except IOError:
+    error("File could not be opened!")
 
 modelPredict()
 regressionPlot(km, price, t0, t1)
