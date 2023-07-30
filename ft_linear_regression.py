@@ -3,7 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 t0, t1 = 0.0, 0.0
-t0s, t1s = [], []
+saveT0, saveT1, saveAcc = [], [], []
 scaledKm, scaledPrice = [], []
 
 def error(msg):
@@ -22,14 +22,13 @@ def meanSquareError(km, price):
     # MSE = (1/n) * Σ(yᵢ - ȳ)²
     # y -> bagimli degisken (data.csv - fiyat)
     # ȳ -> t0 + t1 * milage (tahmin edilen fiyat)
-    global t0, t1
     tmp_summ = 0.0
 
     for i in range(len(km)):
         tmp_diff = estimatePrice(km[i]) - float(price[i])
         tmp_diff *= tmp_diff
         tmp_summ += tmp_diff
-    return (tmp_summ / (len(km)))
+    return (tmp_summ / len(km))
 def updateTeta0(t0, t1):
     global scaledKm, scaledPrice
     tmp_summ = 0.0
@@ -46,15 +45,14 @@ def updateTeta1(t0, t1):
     return tmp_summ / len(scaledKm)
 def modelPredict():
     global t0, t1
-    global t0s, t1s
+    global saveT0, saveT1
     global km, price
 
     normalizeData(km, price)
     mse = meanSquareError(km, price)
     sharpness = mse
-    while sharpness > 0.000001 or sharpness < -0.000001:
-        if (abs(sharpness) > 1):
-            saveWeights(t0, t1)
+    while abs(sharpness) > mse * 0.00001:
+        saveWeights(t0, t1)
         t0 -= updateTeta0(t0, t1)
         t1 -= updateTeta1(t0, t1)
         tempMse = mse
@@ -66,31 +64,36 @@ def modelPredict():
 
     save = open('thetaValues.txt', 'w')
     save.write(str(t0) + "," + str(t1))
+def getAcc(km, price, t0, t1):
+    totalPredict = sum([abs((t0 + t1 * km[i]) - price[i]) for i in range(len(km))])
+    return 1 - totalPredict / sum(price)
 def saveWeights(t0, t1):
-    global t0s, t1s
-    global km, price
+    global saveT0, saveT1
+    global km, price, saveAcc
 
     t1 = (max(price) - min(price)) * t1 / (max(km) - min(km))
     t0 = min(price) + ((max(price) - min(price)) * t0) + t1 * (-min(km))
-    t0s.append(t0)
-    t1s.append(t1)
+    saveT0.append(t0)
+    saveT1.append(t1)
+    saveAcc.append(getAcc(km, price, t0, t1))
 def regressionPlot():
     global km, price, fileName
-    global t0s, t1s
-    for i in range(len(t1s)):
+    global saveT0, saveT1, saveAcc
+    for i in range(len(saveT1)):
         plt.cla()
 
         plt.title('ft_linear_regression', backgroundcolor='green')
         plt.title('dkarhan', loc = "right")
-        plt.xlabel('Mileage', color="purple")
-        plt.ylabel('Price', color="purple")
+        plt.xlabel('Mileage', color="blue")
+        plt.ylabel('Price', color="blue")
 
-        predictPrice = [(t0s[i] + n * t1s[i]) for n in km]
+        predictPrice = [(saveT0[i] + n * saveT1[i]) for n in km]
         plt.plot(km, price, 'ro')
         plt.plot(km, predictPrice, color='green')
         plt.axis([0, max(km) * 1.1, min(price) * 0.50, max(price) * 1.25])
-        plt.legend([fileName, '\nWeights\nt0: ' + str(t0s[i])[:8] + '\nt1: ' + str(t1s[i])[:8]], loc ="upper right")
-        plt.pause(0.1)
+        plt.legend([fileName, '\nWeights\nt0: ' + str(saveT0[i])[:6] + ' | t1: ' + str(saveT1[i])[:6] + '\Acc: ' + str(saveAcc[i])[:10]])
+        plt.pause(0.25)
+    plt.show()
 
 try:
     fileName = input("Enter the data set: ")

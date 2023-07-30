@@ -4,8 +4,12 @@ def printGuess(mileage):
             thetaValues = weight.read().split(',')
             t0 = float(thetaValues[0])
             t1 = float(thetaValues[1])
+            prediction = t0 + (t1 * float(mileage))
 
-            print("Estimate price: ", (t0 + (t1 * float(mileage))))
+            if (prediction > 0):
+                print("Estimate price: ", prediction)
+            else:
+                print("I need more data.\nI don't want to give that car to my brother :)")
     except FileNotFoundError:
         print("File not found!")
     except IOError:
